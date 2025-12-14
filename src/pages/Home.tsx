@@ -71,11 +71,16 @@ export default function Home() {
 
           <div className="max-w-5xl mx-auto">
             {isSearching ? (
-              <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                <p className="text-gray-600 text-lg">
-                  Recherche des meilleurs vols...
-                </p>
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-50/80">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-20 w-20 border-4 border-orange-500 border-t-transparent mx-auto mb-6"></div>
+                  <p className="text-xl font-semibold text-gray-700">
+                    Recherche des meilleurs vols...
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Cela peut prendre quelques secondes
+                  </p>
+                </div>
               </div>
             ) : (
               <SearchBar onSearch={handleSearch} />

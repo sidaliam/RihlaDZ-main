@@ -6,6 +6,7 @@ import {
   ArrowLeftRight,
   ChevronLeft,
   ChevronRight,
+  TicketPlus,
 } from "lucide-react";
 import { searchCities } from "../services/amadeusApi";
 
@@ -20,6 +21,7 @@ interface City {
 
 interface SearchBarProps {
   onSearch: (params: SearchParams) => void;
+  initialParams?: Partial<SearchParams>; // NOUVEAU
 }
 
 export interface SearchParams {
@@ -54,28 +56,38 @@ const MONTHS_FR = [
 
 const DAYS_FR = ["lu", "ma", "me", "je", "ve", "sa", "di"];
 
-export default function SearchBar({ onSearch }: SearchBarProps) {
-  const [tripType, setTripType] = useState<"oneway" | "return">("return");
-  const [origin, setOrigin] = useState("");
-  const [destination, setDestination] = useState("");
+export default function SearchBar({ onSearch, initialParams }: SearchBarProps) {
+  const [tripType, setTripType] = useState<"oneway" | "return" | "multi">(
+    initialParams?.tripType || "return"
+  );
+  const [origin, setOrigin] = useState(initialParams?.origin || "");
+  const [destination, setDestination] = useState(
+    initialParams?.destination || ""
+  );
   const [originInput, setOriginInput] = useState("");
   const [destInput, setDestInput] = useState("");
   const [originDisplay, setOriginDisplay] = useState("");
   const [destDisplay, setDestDisplay] = useState("");
   const [originResults, setOriginResults] = useState<City[]>([]);
   const [destResults, setDestResults] = useState<City[]>([]);
-  const [departureDate, setDepartureDate] = useState<Date | null>(null);
-  const [returnDate, setReturnDate] = useState<Date | null>(null);
-  const [adults, setAdults] = useState(1);
-  const [children, setChildren] = useState(0);
-  const [babies, setBabies] = useState(0);
+  const [departureDate, setDepartureDate] = useState<Date | null>(
+    initialParams?.departureDate ? new Date(initialParams.departureDate) : null
+  );
+  const [returnDate, setReturnDate] = useState<Date | null>(
+    initialParams?.returnDate ? new Date(initialParams.returnDate) : null
+  );
+  const [adults, setAdults] = useState(initialParams?.adults || 1);
+  const [children, setChildren] = useState(initialParams?.children || 0);
+  const [babies, setBabies] = useState(initialParams?.babies || 0);
   const [travelClass, setTravelClass] = useState("ECONOMY");
   const [showPassengerDropdown, setShowPassengerDropdown] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [direct, setDirect] = useState(false);
-  const [baggage, setBaggage] = useState(true);
-  const [refundable, setRefundable] = useState(false);
+  const [direct, setDirect] = useState(initialParams?.direct || false);
+  const [baggage, setBaggage] = useState(initialParams?.baggage ?? true);
+  const [refundable, setRefundable] = useState(
+    initialParams?.refundable || false
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [selectingDateType, setSelectingDateType] = useState<
     "departure" | "return"
@@ -104,8 +116,35 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (originInput) {
+  // useEffect(() => {
+  //   if (originInput) {
+  //     const fetchOrigins = async () => {
+  //       const results = await searchCities(originInput);
+  //       setOriginResults(results);
+  //     };
+  //     fetchOrigins();
+  //   } else {
+  //     setOriginResults([]);
+  //   }
+  // }, [originInput]);
+
+  // useEffect(() => {
+  //   if (destInput) {
+  //     const fetchDests = async () => {
+  //       const results = await searchCities(destInput);
+  //       setDestResults(results);
+  //     };
+  //     fetchDests();
+  //   } else {
+  //     setDestResults([]);
+  //   }
+  // }, [destInput]);
+
+
+  // Pour l'origine
+useEffect(() => {
+  const timer = setTimeout(() => {
+    if (originInput.length >= 3) { // On cherche seulement à partir de 3 lettres
       const fetchOrigins = async () => {
         const results = await searchCities(originInput);
         setOriginResults(results);
@@ -114,10 +153,15 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
     } else {
       setOriginResults([]);
     }
-  }, [originInput]);
+  }, 500); // Attends 500ms après que l'utilisateur arrête de taper
 
-  useEffect(() => {
-    if (destInput) {
+  return () => clearTimeout(timer);
+}, [originInput]);
+
+// Même chose pour la destination
+useEffect(() => {
+  const timer = setTimeout(() => {
+    if (destInput.length >= 3) {
       const fetchDests = async () => {
         const results = await searchCities(destInput);
         setDestResults(results);
@@ -126,7 +170,10 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
     } else {
       setDestResults([]);
     }
-  }, [destInput]);
+  }, 500);
+
+  return () => clearTimeout(timer);
+}, [destInput]);
 
   const handleSwap = () => {
     const tempOrigin = origin;
@@ -177,11 +224,15 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
     );
   };
 
+  // Remplace ta fonction handleDateClick par ÇA :
   const handleDateClick = (day: number, monthOffset: number = 0) => {
+    // CRUCIAL : on utilise UTC pour éviter le décalage horaire
     const selectedDate = new Date(
-      currentMonth.getFullYear(),
-      currentMonth.getMonth() + monthOffset,
-      day
+      Date.UTC(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth() + monthOffset,
+        day
+      )
     );
 
     if (selectingDateType === "departure" || tripType === "oneway") {
@@ -285,7 +336,9 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
     const params = {
       origin,
       destination,
-      departureDate: departureDate.toISOString().split("T")[0],
+      departureDate: departureDate
+        ? departureDate.toISOString().split("T")[0]
+        : "",
       returnDate: returnDate
         ? returnDate.toISOString().split("T")[0]
         : undefined,
@@ -303,6 +356,16 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
 
     setTimeout(() => setIsLoading(false), 1000);
   };
+
+  useEffect(() => {
+    if (initialParams?.origin && initialParams?.destination) {
+      // Affiche correctement : "ALG → PAR" et non "PAR → ALG"
+      setOriginDisplay(`${initialParams.origin}  (${initialParams.origin})`);
+      setDestDisplay(
+        `${initialParams.destination} (${initialParams.destination})`
+      );
+    }
+  }, [initialParams]);
 
   return (
     <div className="w-full max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-4 md:p-8">
@@ -328,9 +391,16 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
         >
           Aller-retour
         </button>
-        {/* <button className="flex-1 min-w-[140px] px-4 md:px-6 py-2.5 rounded-xl font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all">
-          Multi-destination
-        </button> */}
+        <button
+          className={`flex-1 min-w-[80px] px-4 md:px-6 py-2.5 rounded-xl font-medium transition-all ${
+            tripType === "multi"
+              ? "bg-orange-500 text-white shadow-md"
+              : "bg-gray-100 text-gray-700"
+          }`}
+          onClick={() => setTripType("multi")}
+        >
+          Multi
+        </button>
       </div>
 
       {/* Search Fields Container */}
@@ -373,11 +443,16 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
                       }}
                       className="px-3 md:px-4 py-2 md:py-3 hover:bg-orange-50 cursor-pointer transition-colors"
                     >
-                      <div className="font-semibold text-sm md:text-base text-gray-900">
-                        {city.iataCode}
-                      </div>
-                      <div className="text-xs md:text-sm text-gray-600">
-                        {city.name}
+                      <div className="flex items-center gap-2">
+                        <TicketPlus className="w-4 h-4 md:w-5 md:h-5 text-orange-500 flex-shrink-0" />
+                        <div>
+                          <div className="font-semibold text-sm md:text-base text-gray-900">
+                            {city.iataCode}
+                          </div>
+                          <div className="text-xs md:text-sm text-gray-600">
+                            {city.name}
+                          </div>
+                        </div>
                       </div>
                     </li>
                   ))}
@@ -391,7 +466,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
                 onClick={handleSwap}
                 className="p-2 md:p-3 rounded-full bg-white hover:bg-gray-100 transition-colors shadow-sm"
               >
-                <ArrowLeftRight className="w-5 h-5 text-gray-600" />
+                <ArrowLeftRight className="w-5 h-5 text-orange-600" />
               </button>
             </div>
 
@@ -430,11 +505,16 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
                       }}
                       className="px-3 md:px-4 py-2 md:py-3 hover:bg-orange-50 cursor-pointer transition-colors"
                     >
-                      <div className="font-semibold text-sm md:text-base text-gray-900">
-                        {city.iataCode}
-                      </div>
-                      <div className="text-xs md:text-sm text-gray-600">
-                        {city.name}
+                      <div className="flex items-center gap-2">
+                        <TicketPlus className="w-4 h-4 md:w-5 md:h-5 text-orange-500 flex-shrink-0" />
+                        <div>
+                          <div className="font-semibold text-sm md:text-base text-gray-900">
+                            {city.iataCode}
+                          </div>
+                          <div className="text-xs md:text-sm text-gray-600">
+                            {city.name}
+                          </div>
+                        </div>
                       </div>
                     </li>
                   ))}

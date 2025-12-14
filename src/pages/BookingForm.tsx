@@ -11,7 +11,6 @@ import {
 import { createClient } from "@supabase/supabase-js";
 import { createFlightOrder } from "../services/amadeusApi";
 
-
 interface PassengerData {
   gender: string;
   firstName: string;
@@ -31,19 +30,28 @@ export default function BookingForm() {
   const [phone, setPhone] = useState("");
   const [wilaya, setWilaya] = useState("");
   const [commune, setCommune] = useState("");
-  const [passengers, setPassengers] = useState<PassengerData[]>([
-    {
-      gender: "Mr",
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const totalPassengers =
+    (searchParams?.adults || 1) +
+    (searchParams?.children || 0) +
+    (searchParams?.babies || 0);
+
+  // Génère un passager vide pour chacun
+  const initialPassengers: PassengerData[] = Array.from(
+    { length: totalPassengers },
+    (_, i) => ({
+      gender: i === 0 ? "Mr" : "Mr", // Tu peux mettre "Mr" par défaut
       firstName: "",
       lastName: "",
       birthDate: "",
       nationality: "Algérie",
       passportNumber: "",
       passportExpiry: "",
-    },
-  ]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+    })
+  );
 
+  const [passengers, setPassengers] =
+    useState<PassengerData[]>(initialPassengers);
   const formatTime = (dateTime: string) => {
     return new Date(dateTime).toLocaleTimeString("fr-FR", {
       hour: "2-digit",
@@ -88,6 +96,7 @@ export default function BookingForm() {
     const updated = [...passengers];
     updated[index] = { ...updated[index], [field]: value };
     setPassengers(updated);
+    console.log("le updated ", updated);
   };
 
   const generatePNR = () => {
@@ -137,21 +146,21 @@ export default function BookingForm() {
       }
 
       // 2. Sauvegarde dans Supabase
-      const { error } = await supabase.from("reservations").insert({
-        pnr,
-        email,
-        phone,
-        wilaya,
-        commune,
-        flight_data: flight,
-        search_params: searchParams,
-        passengers,
-        total_price: flight.price.total,
-        currency: flight.price.currency,
-        status: pnr.length === 6 ? "confirmed_real" : "confirmed_simulated",
-      });
+      // const { error } = await supabase.from("reservations").insert({
+      //   pnr,
+      //   email,
+      //   phone,
+      //   wilaya,
+      //   commune,
+      //   flight_data: flight,
+      //   search_params: searchParams,
+      //   passengers,
+      //   total_price: flight.price.total,
+      //   currency: flight.price.currency,
+      //   status: pnr.length === 6 ? "confirmed_real" : "confirmed_simulated",
+      // });
 
-      if (error) throw error;
+      // if (error) throw error;
 
       // 3. Redirection avec le vrai PNR
       navigate("/confirmation", {
@@ -281,7 +290,17 @@ export default function BookingForm() {
                     <h2 className="text-xl font-semibold">
                       Passager {index + 1}
                     </h2>
-                    <span className="text-sm text-gray-500">Adulte</span>
+                    <span className="text-sm font-medium text-orange-600">
+                      {index < (searchParams?.adults || 1) && "Adulte"}
+                      {index >= (searchParams?.adults || 1) &&
+                        index <
+                          (searchParams?.adults || 1) +
+                            (searchParams?.children || 0) &&
+                        "Enfant"}
+                      {index >=
+                        (searchParams?.adults || 1) +
+                          (searchParams?.children || 0) && "Bébé"}
+                    </span>
                   </div>
 
                   <div className="flex gap-2 mb-4">
