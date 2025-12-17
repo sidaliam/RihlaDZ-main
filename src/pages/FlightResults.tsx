@@ -1079,8 +1079,16 @@ export default function FlightResults() {
                         </div>
                         <div className="border-t pt-4">
                           <div className="flex items-center gap-3 mb-2">
-                            <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center">
-                              <Plane className="w-5 h-5 text-white" />
+                            <div className="w-10 h-10 bg-white-500 rounded-lg flex items-center justify-center">
+                              <img
+                                  src={getAirlineLogo(
+                                    segment.carrierCode
+                                  )}
+                                  alt={getAirlineName(
+                                    segment.carrierCode
+                                  )}
+                                  className="w-full h-full object-contain"
+                                />
                             </div>
                             <div>
                               <div className="font-semibold">

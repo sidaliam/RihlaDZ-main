@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   TicketPlus,
+  X,
 } from "lucide-react";
 import { searchCities } from "../services/amadeusApi";
 
@@ -96,6 +97,61 @@ export default function SearchBar({ onSearch, initialParams }: SearchBarProps) {
   const calendarRef = useRef<HTMLDivElement>(null);
   const passengerRef = useRef<HTMLDivElement>(null);
 
+  // États pour multi-destinations
+  const [legs, setLegs] = useState<
+    Array<{
+      origin: string;
+      destination: string;
+      departureDate: string;
+      originInput: string; // ← Nouveau : pour taper dans origin
+      destinationInput: string; // ← Nouveau : pour taper dans destination
+      originDisplay?: string;
+      destinationDisplay?: string;
+    }>
+  >([
+    {
+      origin: "",
+      destination: "",
+      departureDate: "",
+      originInput: "",
+      destinationInput: "",
+    },
+    {
+      origin: "",
+      destination: "",
+      departureDate: "",
+      originInput: "",
+      destinationInput: "",
+    },
+  ]);
+
+  const addLeg = () => {
+    setLegs([...legs, { origin: "", destination: "", departureDate: "" }]);
+  };
+
+  const removeLeg = (index: number) => {
+    if (legs.length > 2) {
+      setLegs(legs.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateLeg = (
+    index: number,
+    field:
+      | "origin"
+      | "destination"
+      | "departureDate"
+      | "originInput"
+      | "destinationInput"
+      | "originDisplay"
+      | "destinationDisplay",
+    value: string
+  ) => {
+    const updated = [...legs];
+    updated[index] = { ...updated[index], [field]: value };
+    setLegs(updated);
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -140,40 +196,40 @@ export default function SearchBar({ onSearch, initialParams }: SearchBarProps) {
   //   }
   // }, [destInput]);
 
-
   // Pour l'origine
-useEffect(() => {
-  const timer = setTimeout(() => {
-    if (originInput.length >= 3) { // On cherche seulement à partir de 3 lettres
-      const fetchOrigins = async () => {
-        const results = await searchCities(originInput);
-        setOriginResults(results);
-      };
-      fetchOrigins();
-    } else {
-      setOriginResults([]);
-    }
-  }, 500); // Attends 500ms après que l'utilisateur arrête de taper
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (originInput.length >= 3) {
+        // On cherche seulement à partir de 3 lettres
+        const fetchOrigins = async () => {
+          const results = await searchCities(originInput);
+          setOriginResults(results);
+        };
+        fetchOrigins();
+      } else {
+        setOriginResults([]);
+      }
+    }, 500); // Attends 500ms après que l'utilisateur arrête de taper
 
-  return () => clearTimeout(timer);
-}, [originInput]);
+    return () => clearTimeout(timer);
+  }, [originInput]);
 
-// Même chose pour la destination
-useEffect(() => {
-  const timer = setTimeout(() => {
-    if (destInput.length >= 3) {
-      const fetchDests = async () => {
-        const results = await searchCities(destInput);
-        setDestResults(results);
-      };
-      fetchDests();
-    } else {
-      setDestResults([]);
-    }
-  }, 500);
+  // Même chose pour la destination
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (destInput.length >= 3) {
+        const fetchDests = async () => {
+          const results = await searchCities(destInput);
+          setDestResults(results);
+        };
+        fetchDests();
+      } else {
+        setDestResults([]);
+      }
+    }, 500);
 
-  return () => clearTimeout(timer);
-}, [destInput]);
+    return () => clearTimeout(timer);
+  }, [destInput]);
 
   const handleSwap = () => {
     const tempOrigin = origin;
@@ -321,39 +377,72 @@ useEffect(() => {
   };
 
   const handleSearch = () => {
-    if (!origin || !destination || !departureDate) {
-      alert("Veuillez remplir tous les champs obligatoires");
-      return;
-    }
+    if (tripType === "multi") {
+      const invalidLeg = legs.some(
+        (leg) => !leg.origin || !leg.destination || !leg.departureDate
+      );
+      if (invalidLeg) {
+        alert(
+          "Veuillez remplir tous les segments (ville de départ, arrivée et date)"
+        );
+        return;
+      }
 
-    if (tripType === "return" && !returnDate) {
-      alert("Veuillez sélectionner une date de retour");
-      return;
+      const params: any = {
+        tripType: "multi",
+        legs: legs.map((leg) => ({
+          origin: leg.origin,
+          destination: leg.destination,
+          departureDate: leg.departureDate,
+        })),
+        adults,
+        children,
+        babies,
+        travelClass,
+        direct,
+        baggage,
+        refundable,
+      };
+
+      onSearch(params);
+    } else {
+      if (!origin || !destination || !departureDate) {
+        alert("Veuillez remplir tous les champs obligatoires");
+        return;
+      }
+
+      if (tripType === "return" && !returnDate) {
+        alert("Veuillez sélectionner une date de retour");
+        return;
+      }
+
+      setIsLoading(true);
+
+      const params = {
+        origin,
+        destination,
+        departureDate: departureDate
+          ? departureDate.toISOString().split("T")[0]
+          : "",
+        returnDate: returnDate
+          ? returnDate.toISOString().split("T")[0]
+          : undefined,
+        adults,
+        children,
+        babies,
+        travelClass,
+        tripType,
+        direct,
+        baggage,
+        refundable,
+      };
+
+      onSearch(params);
+
+      setTimeout(() => setIsLoading(false), 1000);
     }
 
     setIsLoading(true);
-
-    const params = {
-      origin,
-      destination,
-      departureDate: departureDate
-        ? departureDate.toISOString().split("T")[0]
-        : "",
-      returnDate: returnDate
-        ? returnDate.toISOString().split("T")[0]
-        : undefined,
-      adults,
-      children,
-      babies,
-      travelClass,
-      tripType,
-      direct,
-      baggage,
-      refundable,
-    };
-
-    onSearch(params);
-
     setTimeout(() => setIsLoading(false), 1000);
   };
 
@@ -407,222 +496,397 @@ useEffect(() => {
       <div className="bg-gray-50 rounded-2xl p-3 md:p-6 mb-4">
         <div className="grid grid-cols-1 gap-3 mb-4">
           {/* Origin and Destination Row on Mobile, Grid on Desktop */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-            {/* Origin */}
-            <div className="relative md:col-span-5 bg-white rounded-xl">
-              <div className="p-3 md:p-4">
-                <label className="block text-xs text-gray-500 mb-1">
-                  D'où partez-vous ?
-                </label>
-                <div className="relative">
-                  <Plane className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-orange-500" />
-                  <input
-                    type="text"
-                    placeholder="Alger (ALG)"
-                    value={originInput || originDisplay}
-                    onChange={(e) => {
-                      setOriginInput(e.target.value);
-                      setOriginDisplay("");
-                    }}
-                    className="w-full pl-6 md:pl-7 font-semibold text-sm md:text-base text-gray-900 bg-transparent outline-none"
-                  />
-                </div>
-              </div>
-              {originResults.length > 0 && (
-                <ul className="absolute z-20 w-full bg-white border border-gray-200 rounded-xl mt-1 max-h-48 md:max-h-60 overflow-auto shadow-xl">
-                  {originResults.map((city) => (
-                    <li
-                      key={city.id}
-                      onClick={() => {
-                        setOrigin(city.iataCode);
-                        setOriginDisplay(
-                          `${city.address.cityName} (${city.iataCode})`
-                        );
-                        setOriginInput("");
-                        setOriginResults([]);
+
+          {tripType !== "multi" ? (
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+              {/* Origin */}
+              <div className="relative md:col-span-5 bg-white rounded-xl">
+                <div className="p-3 md:p-4">
+                  <label className="block text-xs text-gray-500 mb-1">
+                    D'où partez-vous ?
+                  </label>
+                  <div className="relative">
+                    <Plane className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-orange-500" />
+                    <input
+                      type="text"
+                      placeholder="Alger (ALG)"
+                      value={originInput || originDisplay}
+                      onChange={(e) => {
+                        setOriginInput(e.target.value);
+                        setOriginDisplay("");
                       }}
-                      className="px-3 md:px-4 py-2 md:py-3 hover:bg-orange-50 cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <TicketPlus className="w-4 h-4 md:w-5 md:h-5 text-orange-500 flex-shrink-0" />
-                        <div>
-                          <div className="font-semibold text-sm md:text-base text-gray-900">
-                            {city.iataCode}
+                      className="w-full pl-6 md:pl-7 font-semibold text-sm md:text-base text-gray-900 bg-transparent outline-none"
+                    />
+                  </div>
+                </div>
+                {originResults.length > 0 && (
+                  <ul className="absolute z-20 w-full bg-white border border-gray-200 rounded-xl mt-1 max-h-48 md:max-h-60 overflow-auto shadow-xl">
+                    {originResults.map((city) => (
+                      <li
+                        key={city.id}
+                        onClick={() => {
+                          setOrigin(city.iataCode);
+                          setOriginDisplay(
+                            `${city.address.cityName} (${city.iataCode})`
+                          );
+                          setOriginInput("");
+                          setOriginResults([]);
+                        }}
+                        className="px-3 md:px-4 py-2 md:py-3 hover:bg-orange-50 cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <TicketPlus className="w-4 h-4 md:w-5 md:h-5 text-orange-500 flex-shrink-0" />
+                          <div>
+                            <div className="font-semibold text-sm md:text-base text-gray-900">
+                              {city.iataCode}
+                            </div>
+                            <div className="text-xs md:text-sm text-gray-600">
+                              {city.name}
+                            </div>
                           </div>
-                          <div className="text-xs md:text-sm text-gray-600">
-                            {city.name}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Swap Button */}
+              <div className="flex items-center justify-center md:col-span-2">
+                <button
+                  onClick={handleSwap}
+                  className="p-2 md:p-3 rounded-full bg-white hover:bg-gray-100 transition-colors shadow-sm"
+                >
+                  <ArrowLeftRight className="w-5 h-5 text-orange-600" />
+                </button>
+              </div>
+
+              {/* Destination */}
+              <div className="relative md:col-span-5 bg-white rounded-xl">
+                <div className="p-3 md:p-4">
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Où allez-vous ?
+                  </label>
+                  <div className="relative">
+                    <Plane className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-orange-500" />
+                    <input
+                      type="text"
+                      placeholder="Istanbul (IST)"
+                      value={destInput || destDisplay}
+                      onChange={(e) => {
+                        setDestInput(e.target.value);
+                        setDestDisplay("");
+                      }}
+                      className="w-full pl-6 md:pl-7 font-semibold text-sm md:text-base text-gray-900 bg-transparent outline-none"
+                    />
+                  </div>
+                </div>
+                {destResults.length > 0 && (
+                  <ul className="absolute z-20 w-full bg-white border border-gray-200 rounded-xl mt-1 max-h-48 md:max-h-60 overflow-auto shadow-xl">
+                    {destResults.map((city) => (
+                      <li
+                        key={city.id}
+                        onClick={() => {
+                          setDestination(city.iataCode);
+                          setDestDisplay(
+                            `${city.address.cityName} (${city.iataCode})`
+                          );
+                          setDestInput("");
+                          setDestResults([]);
+                        }}
+                        className="px-3 md:px-4 py-2 md:py-3 hover:bg-orange-50 cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <TicketPlus className="w-4 h-4 md:w-5 md:h-5 text-orange-500 flex-shrink-0" />
+                          <div>
+                            <div className="font-semibold text-sm md:text-base text-gray-900">
+                              {city.iataCode}
+                            </div>
+                            <div className="text-xs md:text-sm text-gray-600">
+                              {city.name}
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {legs.map((leg, index) => (
+                <div
+                  key={index}
+                  className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end"
+                >
+                  {/* Numéro du segment */}
+                  <div className="hidden md:flex md:col-span-1 justify-center">
+                    <div className="w-10 h-10 rounded-full bg-orange-500 text-white font-bold flex items-center justify-center">
+                      {index + 1}
+                    </div>
+                  </div>
+
+                  {/* Origin */}
+                  <div className="relative md:col-span-4 bg-white rounded-xl">
+                    <div className="p-3 md:p-4">
+                      <label className="block text-xs text-gray-500 mb-1">
+                        Départ {index === 0 ? "(origine)" : ""}
+                      </label>
+                      <div className="relative">
+                        <Plane className="absolute left-0 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500" />
+                        <input
+                          type="text"
+                          placeholder="Ville ou aéroport"
+                          value={leg.originDisplay || leg.origin}
+                          onChange={(e) =>
+                            updateLeg(index, "origin", e.target.value)
+                          }
+                          className="w-full pl-8 font-semibold text-gray-900 bg-transparent outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Destination */}
+                  <div className="relative md:col-span-4 bg-white rounded-xl">
+                    <div className="p-3 md:p-4">
+                      <label className="block text-xs text-gray-500 mb-1">
+                        Arrivée
+                      </label>
+                      <div className="relative">
+                        <Plane className="absolute left-0 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500 rotate-180" />
+                        <input
+                          type="text"
+                          placeholder="Ville ou aéroport"
+                          value={leg.destinationDisplay || leg.destination}
+                          onChange={(e) =>
+                            updateLeg(index, "destination", e.target.value)
+                          }
+                          className="w-full pl-8 font-semibold text-gray-900 bg-transparent outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Date du segment + bouton supprimer */}
+                  <div
+                    className="relative md:col-span-4 bg-white rounded-xl"
+                    ref={calendarRef}
+                  >
+                    <div
+                      className="p-2 md:p-4 cursor-pointer"
+                      onClick={() => {
+                        setShowCalendar(!showCalendar);
+                        setSelectingDateType("departure");
+                      }}
+                    >
+                      <label className="block text-xs text-gray-500 mb-1">
+                        Date
+                      </label>
+                      <div className="relative">
+                        <Calendar className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-orange-500" />
+                        <div className="pl-6 md:pl-7 font-semibold text-sm md:text-base text-gray-900">
+                          {formatFullDateDisplay()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Calendar Dropdown */}
+                    {showCalendar && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20">
+                        {/* Fond sombre semi-transparent */}
+                        <div
+                          className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto overflow-hidden"
+                          onClick={(e) => e.stopPropagation()} // Empêche la fermeture au clic sur le calendrier
+                        >
+                          {/* En-tête avec titre et flèches */}
+                          <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                            <button
+                              onClick={() =>
+                                setCurrentMonth(
+                                  new Date(
+                                    currentMonth.getFullYear(),
+                                    currentMonth.getMonth() - 1
+                                  )
+                                )
+                              }
+                              className="p-2 hover:bg-gray-100 rounded-full transition"
+                            >
+                              <ChevronLeft className="w-6 h-6 text-orange-600" />
+                            </button>
+
+                            <h3 className="text-xl font-bold text-gray-900">
+                              {MONTHS_FR[currentMonth.getMonth()]}{" "}
+                              {currentMonth.getFullYear()}
+                            </h3>
+
+                            <button
+                              onClick={() =>
+                                setCurrentMonth(
+                                  new Date(
+                                    currentMonth.getFullYear(),
+                                    currentMonth.getMonth() + 1
+                                  )
+                                )
+                              }
+                              className="p-2 hover:bg-gray-100 rounded-full transition"
+                            >
+                              <ChevronRight className="w-6 h-6 text-orange-600" />
+                            </button>
+                          </div>
+
+                          {/* Corps du calendrier */}
+                          <div className="p-4">
+                            {/* Jours de la semaine */}
+                            <div className="grid grid-cols-7 gap-1 mb-3">
+                              {DAYS_FR.map((day) => (
+                                <div
+                                  key={day}
+                                  className="h-10 flex items-center justify-center text-xs font-semibold text-gray-600 uppercase tracking-wider"
+                                >
+                                  {day}
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Jours du mois */}
+                            <div className="grid grid-cols-7 gap-1">
+                              {renderCalendarMonth(0)}
+                            </div>
+                          </div>
+
+                          {/* Bouton Fermer (mobile + desktop) */}
+                          <div className="p-4 border-t border-gray-100">
+                            <button
+                              onClick={() => setShowCalendar(false)}
+                              className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition"
+                            >
+                              Fermer
+                            </button>
                           </div>
                         </div>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+                    )}
+                  </div>
+                </div>
+              ))}
 
-            {/* Swap Button */}
-            <div className="flex items-center justify-center md:col-span-2">
               <button
-                onClick={handleSwap}
-                className="p-2 md:p-3 rounded-full bg-white hover:bg-gray-100 transition-colors shadow-sm"
+                onClick={addLeg}
+                className="flex items-center gap-2 text-orange-600 hover:text-orange-700 font-medium"
               >
-                <ArrowLeftRight className="w-5 h-5 text-orange-600" />
+                <TicketPlus className="w-5 h-5" />
+                Ajouter un segment
               </button>
             </div>
-
-            {/* Destination */}
-            <div className="relative md:col-span-5 bg-white rounded-xl">
-              <div className="p-3 md:p-4">
-                <label className="block text-xs text-gray-500 mb-1">
-                  Où allez-vous ?
-                </label>
-                <div className="relative">
-                  <Plane className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-orange-500" />
-                  <input
-                    type="text"
-                    placeholder="Istanbul (IST)"
-                    value={destInput || destDisplay}
-                    onChange={(e) => {
-                      setDestInput(e.target.value);
-                      setDestDisplay("");
-                    }}
-                    className="w-full pl-6 md:pl-7 font-semibold text-sm md:text-base text-gray-900 bg-transparent outline-none"
-                  />
-                </div>
-              </div>
-              {destResults.length > 0 && (
-                <ul className="absolute z-20 w-full bg-white border border-gray-200 rounded-xl mt-1 max-h-48 md:max-h-60 overflow-auto shadow-xl">
-                  {destResults.map((city) => (
-                    <li
-                      key={city.id}
-                      onClick={() => {
-                        setDestination(city.iataCode);
-                        setDestDisplay(
-                          `${city.address.cityName} (${city.iataCode})`
-                        );
-                        setDestInput("");
-                        setDestResults([]);
-                      }}
-                      className="px-3 md:px-4 py-2 md:py-3 hover:bg-orange-50 cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <TicketPlus className="w-4 h-4 md:w-5 md:h-5 text-orange-500 flex-shrink-0" />
-                        <div>
-                          <div className="font-semibold text-sm md:text-base text-gray-900">
-                            {city.iataCode}
-                          </div>
-                          <div className="text-xs md:text-sm text-gray-600">
-                            {city.name}
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
+          )}
 
           {/* Date, Passengers, and Class Row */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
             {/* Date Picker */}
-            <div
-              className="relative md:col-span-4 bg-white rounded-xl"
-              ref={calendarRef}
-            >
+
+            {tripType !== "multi" && (
               <div
-                className="p-3 md:p-4 cursor-pointer"
-                onClick={() => {
-                  setShowCalendar(!showCalendar);
-                  setSelectingDateType("departure");
-                }}
+                className="relative md:col-span-4 bg-white rounded-xl"
+                ref={calendarRef}
               >
-                <label className="block text-xs text-gray-500 mb-1">Date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-orange-500" />
-                  <div className="pl-6 md:pl-7 font-semibold text-sm md:text-base text-gray-900">
-                    {formatFullDateDisplay()}
+                <div
+                  className="p-3 md:p-4 cursor-pointer"
+                  onClick={() => {
+                    setShowCalendar(!showCalendar);
+                    setSelectingDateType("departure");
+                  }}
+                >
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Date
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-orange-500" />
+                    <div className="pl-6 md:pl-7 font-semibold text-sm md:text-base text-gray-900">
+                      {formatFullDateDisplay()}
+                    </div>
                   </div>
                 </div>
+
+                {/* Calendar Dropdown */}
+                {showCalendar && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20">
+                    {/* Fond sombre semi-transparent */}
+                    <div
+                      className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto overflow-hidden"
+                      onClick={(e) => e.stopPropagation()} // Empêche la fermeture au clic sur le calendrier
+                    >
+                      {/* En-tête avec titre et flèches */}
+                      <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                        <button
+                          onClick={() =>
+                            setCurrentMonth(
+                              new Date(
+                                currentMonth.getFullYear(),
+                                currentMonth.getMonth() - 1
+                              )
+                            )
+                          }
+                          className="p-2 hover:bg-gray-100 rounded-full transition"
+                        >
+                          <ChevronLeft className="w-6 h-6 text-orange-600" />
+                        </button>
+
+                        <h3 className="text-xl font-bold text-gray-900">
+                          {MONTHS_FR[currentMonth.getMonth()]}{" "}
+                          {currentMonth.getFullYear()}
+                        </h3>
+
+                        <button
+                          onClick={() =>
+                            setCurrentMonth(
+                              new Date(
+                                currentMonth.getFullYear(),
+                                currentMonth.getMonth() + 1
+                              )
+                            )
+                          }
+                          className="p-2 hover:bg-gray-100 rounded-full transition"
+                        >
+                          <ChevronRight className="w-6 h-6 text-orange-600" />
+                        </button>
+                      </div>
+
+                      {/* Corps du calendrier */}
+                      <div className="p-4">
+                        {/* Jours de la semaine */}
+                        <div className="grid grid-cols-7 gap-1 mb-3">
+                          {DAYS_FR.map((day) => (
+                            <div
+                              key={day}
+                              className="h-10 flex items-center justify-center text-xs font-semibold text-gray-600 uppercase tracking-wider"
+                            >
+                              {day}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Jours du mois */}
+                        <div className="grid grid-cols-7 gap-1">
+                          {renderCalendarMonth(0)}
+                        </div>
+                      </div>
+
+                      {/* Bouton Fermer (mobile + desktop) */}
+                      <div className="p-4 border-t border-gray-100">
+                        <button
+                          onClick={() => setShowCalendar(false)}
+                          className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition"
+                        >
+                          Fermer
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* Calendar Dropdown */}
-              {showCalendar && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20">
-                  {/* Fond sombre semi-transparent */}
-                  <div
-                    className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto overflow-hidden"
-                    onClick={(e) => e.stopPropagation()} // Empêche la fermeture au clic sur le calendrier
-                  >
-                    {/* En-tête avec titre et flèches */}
-                    <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                      <button
-                        onClick={() =>
-                          setCurrentMonth(
-                            new Date(
-                              currentMonth.getFullYear(),
-                              currentMonth.getMonth() - 1
-                            )
-                          )
-                        }
-                        className="p-2 hover:bg-gray-100 rounded-full transition"
-                      >
-                        <ChevronLeft className="w-6 h-6 text-orange-600" />
-                      </button>
-
-                      <h3 className="text-xl font-bold text-gray-900">
-                        {MONTHS_FR[currentMonth.getMonth()]}{" "}
-                        {currentMonth.getFullYear()}
-                      </h3>
-
-                      <button
-                        onClick={() =>
-                          setCurrentMonth(
-                            new Date(
-                              currentMonth.getFullYear(),
-                              currentMonth.getMonth() + 1
-                            )
-                          )
-                        }
-                        className="p-2 hover:bg-gray-100 rounded-full transition"
-                      >
-                        <ChevronRight className="w-6 h-6 text-orange-600" />
-                      </button>
-                    </div>
-
-                    {/* Corps du calendrier */}
-                    <div className="p-4">
-                      {/* Jours de la semaine */}
-                      <div className="grid grid-cols-7 gap-1 mb-3">
-                        {DAYS_FR.map((day) => (
-                          <div
-                            key={day}
-                            className="h-10 flex items-center justify-center text-xs font-semibold text-gray-600 uppercase tracking-wider"
-                          >
-                            {day}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Jours du mois */}
-                      <div className="grid grid-cols-7 gap-1">
-                        {renderCalendarMonth(0)}
-                      </div>
-                    </div>
-
-                    {/* Bouton Fermer (mobile + desktop) */}
-                    <div className="p-4 border-t border-gray-100">
-                      <button
-                        onClick={() => setShowCalendar(false)}
-                        className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition"
-                      >
-                        Fermer
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
 
             {/* Passengers */}
             <div

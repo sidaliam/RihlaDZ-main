@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { createFlightOrder } from "../services/amadeusApi";
-
+import { getAirlineLogo } from "../utils/airlineLogos";
 interface PassengerData {
   gender: string;
   firstName: string;
@@ -496,8 +496,23 @@ export default function BookingForm() {
 
                     <div className="bg-gray-50 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
-                          <Plane className="w-4 h-4 text-white" />
+                        <div className="w-8 h-8 bg-white-500 rounded-lg flex items-center justify-center">
+                          {getAirlineLogo(flight.validatingAirlineCodes[0]) ? (
+                            <img
+                              src={getAirlineLogo(
+                                flight.validatingAirlineCodes[0]
+                              )}
+                              alt={getAirlineName(
+                                flight.validatingAirlineCodes[0]
+                              )}
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            // Fallback si pas de logo
+                            <div className="w-full h-full bg-orange-500 flex items-center justify-center text-white font-bold text-lg">
+                              {flight.validatingAirlineCodes[0]}
+                            </div>
+                          )}
                         </div>
                         <div>
                           <div className="font-medium text-sm">
@@ -560,8 +575,25 @@ export default function BookingForm() {
 
                       <div className="bg-gray-50 rounded-lg p-3">
                         <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
-                            <Plane className="w-4 h-4 text-white" />
+                          <div className="w-8 h-8 bg-white-500 rounded-lg flex items-center justify-center">
+                            {getAirlineLogo(
+                              flight.validatingAirlineCodes[0]
+                            ) ? (
+                              <img
+                                src={getAirlineLogo(
+                                  flight.validatingAirlineCodes[0]
+                                )}
+                                alt={getAirlineName(
+                                  flight.validatingAirlineCodes[0]
+                                )}
+                                className="w-full h-full object-contain"
+                              />
+                            ) : (
+                              // Fallback si pas de logo
+                              <div className="w-full h-full bg-orange-500 flex items-center justify-center text-white font-bold text-lg">
+                                {flight.validatingAirlineCodes[0]}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <div className="font-medium text-sm">
