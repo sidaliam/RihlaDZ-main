@@ -8,7 +8,6 @@ import {
   Briefcase,
   AlertCircle,
 } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
 import { createFlightOrder } from "../services/amadeusApi";
 import { getAirlineLogo } from "../utils/airlineLogos";
 interface PassengerData {
@@ -145,8 +144,8 @@ export default function BookingForm() {
         alert("Réservation simulée (mode test limité atteint)");
       }
 
-      // 2. Sauvegarde dans Supabase
-      // const { error } = await supabase.from("reservations").insert({
+
+ 
       //   pnr,
       //   email,
       //   phone,
